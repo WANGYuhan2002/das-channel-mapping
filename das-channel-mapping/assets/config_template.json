@@ -1,0 +1,43 @@
+{
+ "_comment": "Template for build_channel_map.py. Replace every value; delete pieces you do not need. Pieces run along the fibre from channel 0; each owns cols [lo, hi) (include_end adds hi). Relative file names are relative to this file. Keys starting with _ are ignored.",
+ "name": "my cable",
+ "n_channels": 2000,
+ "spacing_m": 8.16761589,
+ "_spacing": "TRUE spacing = nominal spacing x fibre-length multiplier from the file header",
+ "first_channel_distance_m": -207.208,
+ "_first_channel_distance": "header start distance of channel 0 (negative = inside the interrogator)",
+ "label": {"column": "fo_nom_m", "offset_m": -215.0, "step_m": 8.0},
+ "_label": "optional nominal label earlier products used; written as a column, never used for lengths",
+ "distance_column": "dist_header_m",
+ "tables": [
+  {"name": "8m", "step": 1},
+  {"name": "16m", "step": 2, "index_column": "sorted_j", "_note": "decimated product: channel j centred on raw 2j"}
+ ],
+ "strike": {"half": 6, "min_chord_m": 20, "exclude_slack": true},
+ "pieces": [
+  {"segment": "internal", "type": "point", "cols": [0, 25], "at": [0.0, 0.0], "unc_m": null,
+   "path_source": "interrogator_gps", "_note": "fibre inside the interrogator: header GPS of the unit"},
+  {"segment": "cabin", "type": "line", "cols": [25, 42.7], "from": [0.0, 0.0], "to": [0.0, 0.0], "unc_m": 15,
+   "strike": false, "_note": "interrogator -> first anchor; often a reel stored next to the unit"},
+  {"segment": "land", "type": "anchored", "anchors": "anchors.csv", "paths": "paths.csv",
+   "merge_within_cols": 0.5, "anchor_fix": {"10": 143.2},
+   "slack": [
+    {"between": "14-15", "cols": [245.5, 250.5], "kind": "quake_coil", "at_fraction": 0.5926, "placed_by": "vehicles"},
+    {"between": "25-26", "cols": [502.5, 506.5], "kind": "loop", "_note": "no point given: placed where the rest is uniform"}
+   ],
+   "unc": {"road_m": 5, "straight_m": 10, "located_m": 5, "excess_factor": 0.5},
+   "_note": "anchors.csv: name, col, lat, lon (hammer picks + shot GPS); paths.csv from road_path.py; slack 'between' = '<first anchor>-<second anchor>'"},
+  {"segment": "coil", "type": "point", "cols": [899.78, 920.8], "include_end": true, "at": [0.0, 0.0],
+   "unc_m": 15, "path_source": "manhole_shot", "slack_label": "beach_coil",
+   "_note": "a coil in a manhole: every channel at the shot point on the manhole"},
+  {"segment": "beach", "type": "line", "cols": [920.8, 926.875], "from": [0.0, 0.0], "to": [0.0, 0.0], "unc_m": 15},
+  {"segment": "sea", "type": "path", "cols": [926.875, 1766.5], "include_end": true, "route": "sea_route.csv",
+   "unc_m": 30, "path_source": "operator_route_stretch",
+   "_note": "route stretched between the two waterline channels found from the waves (ends default to cols)"},
+  {"segment": "far_land", "type": "ratio", "cols": [1766.5, 1999], "start_col": 1766.5, "route": "far_route.csv",
+   "ratio": "anchored", "max_excess_rest_m": 100,
+   "unc_rules": [{"max_col": 1775.5, "unc_m": 15}, {"unc_m": 60}],
+   "features": {"detour_start": 120.0, "hairpin": 700.0}, "path_source": "hand_route",
+   "_note": "no anchors: along the (hand-drawn) route with the anchored fibre/path ratio; features = arc lengths on the route whose channels are reported (to compare with vehicle features)"}
+ ]
+}
