@@ -47,7 +47,10 @@ with data that did not go into the build, then a **versioned delivery**. Every s
 **0. Inventory** — ask for what is missing: raw recordings (rate, channel count, header start distance, spatial
 sampling, fibre-length multiplier, gauge length, interrogator GPS), decimated products, the tap-test log (times,
 GPS, logged distances), operator / as-built route drawings, OSM coverage of the land route, imagery the user can
-trace on, a catalogue of regional earthquakes in the window, hours of traffic, AIS data for the sea part.
+trace on, a catalogue of regional earthquakes in the window, hours of traffic, AIS data for the sea part. The scripts start
+from derived arrays (envelopes, band powers, earthquake windows, car tracks; formats in each `--help`). Reading
+the interrogator's files and tracking cars are not included: write or reuse a reader for the user's format first,
+and say so.
 
 **1. Conventions** — `hammer_anchor.py conventions` on the first picks: the right convention leaves residuals that
 do not grow with distance. List every earlier product built under a wrong convention.

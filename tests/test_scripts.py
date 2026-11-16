@@ -199,3 +199,9 @@ def test_delivery(synthetic, tmp_path):
     fc = json.load(open(tmp_path / "gis" / "channel_map_features.geojson"))
     kinds = {f["properties"]["kind"] for f in fc["features"]}
     assert {"segment", "anchor", "slack"} <= kinds
+
+
+def test_readme_demo(tmp_path):
+    """the README demo runs and the coil block beats spreading the coil (no figure, so no matplotlib needed)."""
+    out = run(os.path.join(EXAMPLE, "run_demo.py"), "--data", str(tmp_path), "--fig", "")
+    assert "inside_pos_unc" in out and "max error 17 m if the coil is spread evenly" in out
