@@ -1,17 +1,47 @@
-# das-channel-mapping
+# das-channel-mapping-skill
 
 **English** · [中文](README_zh.md)
 
-Put every channel of a DAS (distributed acoustic sensing) fibre on the map: latitude, longitude and a position
-uncertainty, for land, submarine or mixed cables. It is a Claude Code skill plus plain Python scripts that also
-run on their own.
+**A Claude Code skill** that puts every channel of a DAS (distributed acoustic sensing) fibre on the map:
+latitude, longitude and a position uncertainty, for land, submarine or mixed cables. The skill
+([`das-channel-mapping/`](das-channel-mapping/)) gives Claude the whole workflow (distance conventions, tap-test
+anchors, wave waterlines, road paths, slack coils, checks, a versioned delivery) and the Python scripts it runs.
+The scripts also work on their own, without Claude.
+
+## Quick start (Claude Code)
+
+1. Install the skill once:
+
+   ```bash
+   git clone https://github.com/WANGYuhan2002/das-channel-mapping-skill
+   pip install -r das-channel-mapping-skill/requirements.txt
+   mkdir -p ~/.claude/skills
+   ln -s "$PWD/das-channel-mapping-skill/das-channel-mapping" ~/.claude/skills/das-channel-mapping
+   ```
+
+   Claude Code finds it by itself. To use it in one project only, link it into that project's `.claude/skills/`.
+
+2. Ask Claude in plain words, in English or Chinese; the skill starts on its own:
+
+   - "Map the DAS channels of my cable from this tap-test log and the operator's route"
+   - "Is there a fibre coil between shots 14 and 15?"
+   - "Where on the ground is channel 750, and how sure are we?"
+   - "用这份锤击记录做通道映射" · "这两个锤点之间有没有盘缆"
+
+   Or call it directly: `/das-channel-mapping`.
+
+3. Claude works through [`SKILL.md`](das-channel-mapping/SKILL.md) step by step. It asks for the inputs it needs,
+   runs the scripts, shows you a figure at each step, and asks you before every judgement call (windows,
+   thresholds, moving an anchor, writing a coil into the map).
+
+To see what a finished map looks like first, run the real-cable demo below; it does not need Claude.
 
 ![Kefalonia–Ithaca](docs/kefalonia.png)
 
 ## Demo: the real Kefalonia–Ithaca cable (one minute)
 
 ```bash
-git clone https://github.com/WANGYuhan2002/das-channel-mapping && cd das-channel-mapping
+git clone https://github.com/WANGYuhan2002/das-channel-mapping-skill && cd das-channel-mapping-skill
 pip install -r requirements.txt
 python3 examples/kefalonia/run_kefalonia.py
 ```
@@ -97,19 +127,6 @@ expect errors about the size of `pos_unc_m`.
 
 The scripts start from derived arrays: envelopes, band powers, earthquake windows and car tracks. Each script's
 `--help` gives the formats. Reading your interrogator's files and tracking cars are **not** included.
-
-## Use it with Claude Code
-
-From the repository folder:
-
-```bash
-ln -s "$PWD/das-channel-mapping" ~/.claude/skills/das-channel-mapping
-```
-
-Then ask, in English or Chinese, for example "map the DAS channels from this tap-test log", "is there a fibre
-coil between shots 14 and 15?" or "where is channel 750?". The skill walks through the steps in
-[`SKILL.md`](das-channel-mapping/SKILL.md) and asks you for the judgement calls: windows, thresholds, and
-whether a block goes into the map.
 
 ## Strengths
 

@@ -1,16 +1,42 @@
-# das-channel-mapping
+# das-channel-mapping-skill
 
 [English](README.md) · **中文**
 
-把 DAS（分布式光纤声波传感）光缆的每一道放到地图上，给出经纬度和位置不确定度。陆上、海底、海陆混合的光缆都适用。
-它是一个 Claude Code skill，附带的 Python 脚本也能单独运行。
+**这是一个 Claude Code skill**：把 DAS（分布式光纤声波传感）光缆的每一道放到地图上，给出经纬度和位置不确定度。陆上、海底、海陆混合的光缆都适用。
+skill（[`das-channel-mapping/`](das-channel-mapping/) 文件夹）把整套流程教给 Claude：距离约定、锤击锚点、海浪水线、道路路径、余缆、检验和版本化交付，也带着它要运行的 Python 脚本。这些脚本不用 Claude 也能单独运行。
+
+## 快速上手（Claude Code）
+
+1. 安装 skill（一次即可）：
+
+   ```bash
+   git clone https://github.com/WANGYuhan2002/das-channel-mapping-skill
+   pip install -r das-channel-mapping-skill/requirements.txt
+   mkdir -p ~/.claude/skills
+   ln -s "$PWD/das-channel-mapping-skill/das-channel-mapping" ~/.claude/skills/das-channel-mapping
+   ```
+
+   Claude Code 会自己找到它。只想在某个项目里用，就链接到那个项目的 `.claude/skills/` 下。
+
+2. 直接用中文或英文跟 Claude 说，skill 会自动启用，比如：
+
+   - “用这份锤击记录和运营商路由给我的光缆做通道映射”
+   - “#14 和 #15 之间有没有盘缆”
+   - “750 道在地面上哪里，有多准”
+   - "Map the DAS channels from this tap-test log"
+
+   也可以输入 `/das-channel-mapping` 直接调用。
+
+3. Claude 会按 [`SKILL.md`](das-channel-mapping/SKILL.md) 一步步做：先问它需要的输入，再跑脚本，每一步给你看图；需要判断的地方（窗口、阈值、要不要挪锚点、要不要把盘缆写进图）都会先问你。
+
+想先看做好的通道表是什么样，可以直接跑下面真实光缆的 demo，不需要 Claude。
 
 ![Kefalonia–Ithaca](docs/kefalonia.png)
 
 ## Demo：真实的 Kefalonia–Ithaca 光缆（一分钟）
 
 ```bash
-git clone https://github.com/WANGYuhan2002/das-channel-mapping && cd das-channel-mapping
+git clone https://github.com/WANGYuhan2002/das-channel-mapping-skill && cd das-channel-mapping-skill
 pip install -r requirements.txt
 python3 examples/kefalonia/run_kefalonia.py
 ```
@@ -85,17 +111,6 @@ Segment with the 41 m coil (anchors 5-6, channels 153-192): max error 17 m if th
 | 5–10 个区域地震、几小时交通、AIS 船迹 | 可选：找余缆、做检验 |
 
 脚本的输入是处理过的数组（包络、频带功率、地震窗口、车辆轨迹），格式见各脚本的 `--help`。**不包括**读取你的解调仪文件和跟踪车辆这两步。
-
-## 在 Claude Code 里用
-
-在仓库目录下运行：
-
-```bash
-ln -s "$PWD/das-channel-mapping" ~/.claude/skills/das-channel-mapping
-```
-
-之后用中文或英文直接说，比如“用这份锤击记录做通道映射”“#14 和 #15 之间有没有盘缆”“750 道在哪”。
-skill 会按 [`SKILL.md`](das-channel-mapping/SKILL.md) 一步步做，需要判断的地方（窗口、阈值、要不要把一块写进图）会先问你。
 
 ## 优点
 
