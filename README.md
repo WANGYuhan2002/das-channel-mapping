@@ -6,19 +6,51 @@ Put every channel of a DAS (distributed acoustic sensing) fibre on the map: lati
 uncertainty, for land, submarine or mixed cables. It is a Claude Code skill plus plain Python scripts that also
 run on their own.
 
-![demo](docs/demo.png)
+![Kefalonia–Ithaca](docs/kefalonia.png)
 
-## Demo (one minute)
+## Demo: the real Kefalonia–Ithaca cable (one minute)
 
 ```bash
 git clone https://github.com/WANGYuhan2002/das-channel-mapping && cd das-channel-mapping
 pip install -r requirements.txt
+python3 examples/kefalonia/run_kefalonia.py
+```
+
+A 15 km land–sea–land seafloor DAS cable in Greece (2024; 1872 channels of 8.17 m). The demo takes the real
+inputs in [`examples/kefalonia/data/`](examples/kefalonia/data/) — 45 tap-test shots with GPS, OpenStreetMap
+roads, the operator's routes, a route drawn by hand on Ithaca and the placement configuration — tests the
+distance convention of the shot log, builds the paths and the map, compares every channel with the map that was
+delivered to the project, and draws the figure above. It prints (shortened):
+
+```
+1. Distance convention of the shot log: read as the header distance, median -3.9 m, 44/45 within +-21 m;
+   read as the label FO_nom, the error grows to -170 m at the beach -> the log uses the header distance
+2. Paths between the 43 land anchors: 41 OSM, 1 operator route; OSM vs operator route: median 4 m, p90 14 m
+3. Channel map (1872 channels):
+    segment  channels  fibre_m  ground_m  pos_unc_min_m  pos_unc_median_m  pos_unc_max_m
+      cabin     25-42    144.6      10.5           15.0              15.0           15.0
+       land    43-899   7000.3    6432.0            5.1               7.6           14.4
+       coil   900-920    171.7       0.0           15.0              15.0           15.0
+      beach   921-926     49.6      40.7           15.0              15.0           15.0
+        sea  927-1766   6857.7    6724.1           30.0              30.0           30.0
+ithaca_land 1767-1871    853.5     831.8           15.0              60.0           60.0
+   six slack blocks on land (41, 33, 25, 16, 155 and 131 m of fibre), each at one point of the road
+   rebuilt vs delivered table: largest difference 0.76 m (rounding in the 2024 files)
+```
+
+What each input is and where it comes from: [`examples/kefalonia/README.md`](examples/kefalonia/README.md). The
+evidence behind the anchors, waterlines and slack blocks (hammer stacks, wave spectra, earthquakes, 60 days of
+traffic) is summarised in [`references/kefalonia-example.md`](das-channel-mapping/references/kefalonia-example.md).
+
+## Known-truth test: a synthetic cable
+
+```bash
 python3 examples/synthetic/run_demo.py
 ```
 
 The demo makes a synthetic 729-channel cable with a known truth. It has a winding road with 9 tap-test anchors
 and a 41 m coil, a manhole coil, a 3 km sea route and a far shore with no anchors. The demo maps the cable,
-checks every channel against the truth and draws the figure above. It prints:
+checks every channel against the truth and draws [`docs/demo.png`](docs/demo.png). It prints:
 
 ```
           channels  error_median_m  error_max_m  pos_unc_median_m inside_pos_unc
@@ -88,7 +120,8 @@ whether a block goes into the map.
 - **It handles slack coils**, which are the largest single error on land. On the real cable, one 155 m coil
   spread evenly put channels up to 56 m off; the demo shows the same effect.
 - **Independent checks.** GPS, AIS and hammer travel times are data that did not go into the build.
-- **Proven on a real 15 km land–sea–land cable** (Kefalonia–Ithaca, Greece, 2024):
+- **Proven on a real 15 km land–sea–land cable** (Kefalonia–Ithaca, Greece, 2024; the demo above rebuilds its
+  delivered map from the real inputs):
   - the bias of AIS ship crossings went from −279 m with the old map to −7 m;
   - earthquakes found one weak run in each of the 5 segments with more than 30 m of extra fibre, and none in
     the other 37.
@@ -127,11 +160,14 @@ Everything is in `das-channel-mapping/scripts/`, and every script has `--help`.
 | `make_delivery.py` | data dictionary, slack inventory, change table, GeoJSON / KML, md5 manifest |
 | `upload_version.sh` | uploads a delivery as a new version, checks the md5 on the remote, moves `current` |
 
-Tests: `python3 -m pytest -q tests/`. They run every script and the demo on synthetic data. The scripts were also
-checked against the original Kefalonia–Ithaca results. No data and no coordinates of that cable are in this
-repository.
+Tests: `python3 -m pytest -q tests/`. They run every script and the synthetic demo, and check that the
+Kefalonia–Ithaca demo rebuilds the delivered map to within 1 m. The other Kefalonia–Ithaca steps (hammer stacks,
+earthquake weak runs, waterline steps, vehicle coil points, AIS check) were checked against the original results
+outside this repository; their raw data are not included.
 
 ## Credits and license
 
-OpenStreetMap data © OpenStreetMap contributors (ODbL); credit it on figures made with OSM paths. MIT license, see
-[LICENSE](LICENSE).
+OpenStreetMap data © OpenStreetMap contributors (ODbL); credit it on figures made with OSM paths. The coastline in
+the Kefalonia figure is from the Copernicus GLO-30 DEM (© DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH
+2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved). Code: MIT license, see
+[LICENSE](LICENSE); the terms of the example data are in [`examples/kefalonia/README.md`](examples/kefalonia/README.md).

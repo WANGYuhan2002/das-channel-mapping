@@ -205,3 +205,16 @@ def test_readme_demo(tmp_path):
     """the README demo runs and the coil block beats spreading the coil (no figure, so no matplotlib needed)."""
     out = run(os.path.join(EXAMPLE, "run_demo.py"), "--data", str(tmp_path), "--fig", "")
     assert "inside_pos_unc" in out and "max error 17 m if the coil is spread evenly" in out
+
+
+def test_kefalonia_rebuild(tmp_path):
+    """the real Kefalonia-Ithaca inputs rebuild the delivered channel map (to the rounding of the 2024 files)."""
+    data = os.path.join(ROOT, "examples", "kefalonia", "data")
+    if not os.path.exists(os.path.join(data, "config.json")):
+        pytest.skip("no Kefalonia example data")
+    out = run(os.path.join(ROOT, "examples", "kefalonia", "run_kefalonia.py"), "--out", str(tmp_path), "--no-fig")
+    assert "the log uses the header distance" in out
+    summ = json.load(open(tmp_path / "channel_map_summary.json"))
+    assert summ["compare"]["max_m"] < 1.0 and summ["compare"]["moved_gt_10_m"] == 0
+    assert abs(summ["pieces"]["ithaca_land"]["fibre_over_path"] - 1.026) < 0.001
+    assert len(summ["anchored"]["slack_blocks"]) == 6 and summ["anchored"]["n_anchors"] == 43

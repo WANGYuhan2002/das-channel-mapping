@@ -19,7 +19,8 @@ A channel map is **anchors** (channels the data pin to a point on the ground) + 
 with data that did not go into the build, then a **versioned delivery**. Every step has a script in `scripts/`
 (Python 3 with numpy, pandas, scipy; networkx for OSM; run any script with `--help`) and a reference in
 `references/`. The method was developed on the Kefalonia–Ithaca seafloor cable; its real numbers are in
-`references/kefalonia-example.md` as a scale for what to expect.
+`references/kefalonia-example.md` as a scale for what to expect, and the repository's `examples/kefalonia/`
+rebuilds its delivered map from the real inputs (a complete, working config to copy from).
 
 ## Ground rules
 
@@ -108,8 +109,10 @@ README that says which file for which data and what not to use any more, the met
 | `make_delivery.py` | data dictionary, slack inventory, change table, GeoJSON / KML, md5 | built tables → delivery files |
 | `upload_version.sh` | versioned upload with md5 check and `current` link | folder → remote version |
 
-The repository's `examples/synthetic/` builds a cable with a known truth and runs the chain end to end; the tests
-(`tests/`) cover every script on synthetic data.
+The repository's `examples/kefalonia/run_kefalonia.py` rebuilds the real Kefalonia–Ithaca map from its inputs
+(shots, OSM extract, operator routes, hand-drawn route, config); `examples/synthetic/` builds a cable with a known
+truth and runs the chain end to end; the tests (`tests/`) cover every script on synthetic data and check the
+Kefalonia rebuild.
 
 ## References
 

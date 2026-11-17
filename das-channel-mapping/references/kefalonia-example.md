@@ -1,7 +1,10 @@
 # Worked example: the Kefalonia–Ithaca seafloor DAS cable (2024)
 
-The method in this skill was built on this cable. The numbers below are the real ones from that work (no
-coordinates and no data are included). Use them as a scale for what to expect, not as defaults.
+The method in this skill was built on this cable. The numbers below are the real ones from that work. Use them
+as a scale for what to expect, not as defaults. The inputs that rebuild the delivered map (shots with GPS, the OSM
+extract, the operator's routes, the hand-drawn Ithaca route, the config) are in the repository's
+`examples/kefalonia/` (`python3 examples/kefalonia/run_kefalonia.py`); the raw recordings behind the evidence
+below (hammer windows, wave spectra, earthquake windows, traffic) are not.
 
 ## The cable and the recording
 

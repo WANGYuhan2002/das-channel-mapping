@@ -1,0 +1,237 @@
+{
+ "_comment": "Kefalonia-Ithaca seafloor DAS (2024): the configuration that rebuilds the delivered channel map. run_kefalonia.py first writes ../out/paths.csv with road_path.py.",
+ "name": "Kefalonia-Ithaca DAS channel map",
+ "n_channels": 1872,
+ "spacing_m": 8.16761589,
+ "first_channel_distance_m": -207.20757,
+ "_spacing": "8 m nominal x fibre-length multiplier 1.020952 (file header)",
+ "label": {
+  "column": "fo_nom_m",
+  "offset_m": -215.0,
+  "step_m": 8.0
+ },
+ "distance_column": "dist_header_m",
+ "projection": {
+  "lat0": 38.44,
+  "lon0": 20.6,
+  "kx": 87192.46127949705,
+  "ky": 111320.0,
+  "_note": "the metres-per-degree of the 2024 build, kept to reproduce the delivered table exactly; drop kx / ky for the WGS84 scale (channels move <= 1.7 m)"
+ },
+ "tables": [
+  {
+   "name": "8m",
+   "step": 1
+  },
+  {
+   "name": "16m",
+   "step": 2,
+   "index_column": "sorted_j"
+  }
+ ],
+ "strike": {
+  "half": 6,
+  "min_chord_m": 20,
+  "exclude_slack": false
+ },
+ "pieces": [
+  {
+   "segment": "internal",
+   "type": "point",
+   "cols": [
+    0,
+    25
+   ],
+   "at": [
+    38.46266,
+    20.556765
+   ],
+   "unc_m": null,
+   "path_source": "interrogator_gps",
+   "_note": "header start locus -25: fibre inside the interrogator, at its GPS"
+  },
+  {
+   "segment": "cabin",
+   "type": "line",
+   "cols": [
+    25,
+    42.69880676269531
+   ],
+   "from": [
+    38.46266,
+    20.556765
+   ],
+   "to": [
+    38.4627535,
+    20.5567758
+   ],
+   "unc_m": 15,
+   "path_source": "linear",
+   "strike": false,
+   "_note": "about 145 m of fibre stored next to the interrogator, 10.5 m from shot #1"
+  },
+  {
+   "segment": "land",
+   "type": "anchored",
+   "anchors": "anchors.csv",
+   "paths": "../out/paths.csv",
+   "merge_within_cols": 0.5,
+   "anchor_fix": {
+    "10": 143.2,
+    "27": 533.1
+   },
+   "slack": [
+    {
+     "between": "14-15",
+     "cols": [
+      245.5,
+      250.5
+     ],
+     "kind": "quake_coil",
+     "at_fraction": 0.5925958112453289,
+     "placed_by": "vehicles"
+    },
+    {
+     "between": "25-26",
+     "cols": [
+      502.5,
+      506.5
+     ],
+     "kind": "loop",
+     "at_fraction": 0.9882288103471129,
+     "placed_by": "vehicles"
+    },
+    {
+     "between": "32-45",
+     "cols": [
+      680.5,
+      683.5
+     ],
+     "kind": "loop",
+     "at_fraction": 0.2800221702180071,
+     "placed_by": "vehicles"
+    },
+    {
+     "between": "45-44",
+     "cols": [
+      705.0,
+      707.0
+     ],
+     "kind": "car_coil",
+     "at_fraction": 0.6609187003750792,
+     "placed_by": "vehicles"
+    },
+    {
+     "between": "43-42",
+     "cols": [
+      749.5,
+      768.5
+     ],
+     "kind": "quake_coil",
+     "at_fraction": 0.6456758559359715,
+     "placed_by": "vehicles"
+    },
+    {
+     "between": "38-37",
+     "cols": [
+      843.5,
+      859.5
+     ],
+     "kind": "unseen",
+     "at_fraction": 0.9739768781045322,
+     "placed_by": "vehicles"
+    }
+   ],
+   "unc": {
+    "road_m": 5,
+    "straight_m": 10,
+    "located_m": 5,
+    "excess_factor": 0.5
+   },
+   "_note": "43 land anchors (shots #3 and #4 picked on the same channel are merged; #10 and #27 moved to the equal-ratio channel); blocks at the earthquake weak runs, points from the vehicles"
+  },
+  {
+   "segment": "coil",
+   "type": "point",
+   "cols": [
+    899.7762451171875,
+    920.8010864257812
+   ],
+   "include_end": true,
+   "at": [
+    38.4405573,
+    20.5798424
+   ],
+   "unc_m": 15,
+   "path_source": "hammer_33",
+   "slack_label": "beach_coil",
+   "_note": "172 m of fibre coiled in the beach manhole: shots #34 and #33 at its two ends"
+  },
+  {
+   "segment": "beach",
+   "type": "line",
+   "cols": [
+    920.8010864257812,
+    926.875
+   ],
+   "from": [
+    38.4405573,
+    20.5798424
+   ],
+   "to": [
+    38.44047887827034,
+    20.580298805236794
+   ],
+   "unc_m": 15,
+   "path_source": "linear",
+   "_note": "manhole -> Kefalonia waterline (FO_nom 7200 m = channel 926.875, ocean waves)"
+  },
+  {
+   "segment": "sea",
+   "type": "path",
+   "cols": [
+    926.875,
+    1766.5
+   ],
+   "include_end": true,
+   "route": "sea_route.csv",
+   "unc_m": 30,
+   "path_source": "d12_stretch",
+   "_note": "operator submarine route (the last stretch before Ithaca from the hand-drawn approach) stretched between the two waterlines"
+  },
+  {
+   "segment": "ithaca_land",
+   "type": "ratio",
+   "cols": [
+    1766.5,
+    1871
+   ],
+   "start_col": 1766.5,
+   "route": "ithaca_route.csv",
+   "ratio": "anchored",
+   "max_excess_rest_m": 100,
+   "unc_rules": [
+    {
+     "max_col": 1775.5,
+     "unc_m": 15
+    },
+    {
+     "unc_m": 60
+    }
+   ],
+   "path_source": "hand_route",
+   "features": {
+    "v_start": 118.0,
+    "v_tip": 201.0,
+    "v_end": 265.0,
+    "hairpin1_start": 670.0,
+    "hairpin1_tip": 705.0,
+    "hairpin1_end": 738.0,
+    "hairpin2_start": 891.0,
+    "hairpin2_tip": 933.0,
+    "hairpin2_end": 971.0
+   },
+   "_note": "hand-drawn route from the Ithaca waterline (channel 1766.5) with the Kefalonia land fibre / road ratio; where the record ends is not known"
+  }
+ ]
+}
