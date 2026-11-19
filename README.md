@@ -2,43 +2,210 @@
 
 **English** · [中文](README_zh.md)
 
-**A Claude Code skill** that puts every channel of a DAS (distributed acoustic sensing) fibre on the map:
-latitude, longitude and a position uncertainty, for land, submarine or mixed cables. The skill
-([`das-channel-mapping/`](das-channel-mapping/)) gives Claude the whole workflow (distance conventions, tap-test
-anchors, wave waterlines, road paths, slack coils, checks, a versioned delivery) and the Python scripts it runs.
-The scripts also work on their own, without Claude.
+**A Claude Code skill that finds the excess fibre along a DAS cable (the coils and loops of spare fibre) and takes
+it out of the channel map.**
 
-## Quick start (Claude Code)
+A DAS (distributed acoustic sensing) interrogator counts its channels along the fibre. The fibre is longer than
+the route it follows, because installers store spare fibre in coils inside manholes and leave loops at splices
+and road crossings. This skill locates that excess length with three signals:
 
-1. Install the skill once:
+| Signal | What it tells | What to look for |
+|---|---|---|
+| **Tap test**: hammer blows at GPS points | how much fibre is in excess, and between which two shots | more fibre between the two shot channels than road between the two GPS points |
+| **Earthquakes** | which channels hold the excess | the amplitude drops on a run of channels, in every earthquake |
+| **Passing vehicles** | whether those channels are at one point, and where on the road | every vehicle track jumps across them |
 
-   ```bash
-   git clone https://github.com/WANGYuhan2002/das-channel-mapping-skill
-   pip install -r das-channel-mapping-skill/requirements.txt
-   mkdir -p ~/.claude/skills
-   ln -s "$PWD/das-channel-mapping-skill/das-channel-mapping" ~/.claude/skills/das-channel-mapping
-   ```
+It then builds the channel map (latitude, longitude and a position uncertainty for every channel) with each coil
+at its one point on the ground and its channels marked, so that they can be left out.
 
-   Claude Code finds it by itself. To use it in one project only, link it into that project's `.claude/skills/`.
+![Excess fibre along a DAS cable and the three signals that show it](docs/fig1_excess_fibre.png)
 
-2. Ask Claude in plain words, in English or Chinese; the skill starts on its own:
+**Figure 1.** Schematic, drawn with the numbers of a real coil. **(a)** A cable under a road with a 3-channel
+loop and a 19-channel coil, three tap-test shots A–C, a vehicle and an earthquake; below it, the same channels in
+the order the interrogator counts them. **(b)** Synthetic earthquake record, one trace per channel.
+**(c)** Synthetic vehicle tracks, channel against time. The 172 m of road between B and C hold 327 m of fibre; the
+earthquake is about 20 times weaker on the loop and coil channels; each vehicle passes all 19 coil channels at
+the same moment. Excess fibre shows as more fibre than road, an amplitude drop, and a jump in the vehicle tracks.
 
-   - "Map the DAS channels of my cable from this tap-test log and the operator's route"
-   - "Is there a fibre coil between shots 14 and 15?"
-   - "Where on the ground is channel 750, and how sure are we?"
-   - "用这份锤击记录做通道映射" · "这两个锤点之间有没有盘缆"
+## 1. Why the excess fibre has to come out
 
-   Or call it directly: `/das-channel-mapping`.
+### Channel number is not position
 
-3. Claude works through [`SKILL.md`](das-channel-mapping/SKILL.md) step by step. It asks for the inputs it needs,
-   runs the scripts, shows you a figure at each step, and asks you before every judgement call (windows,
-   thresholds, moving an anchor, writing a coil into the map).
+Channel *n* is *n* × the channel spacing along the **fibre**. Seismology needs its place on the **ground**. The
+two agree only where the fibre follows its route metre for metre. Where spare fibre is stored, many channels are
+at one point, and every channel behind that point is further along the fibre than along the route.
 
-To see what a finished map looks like first, run the real-cable demo below; it does not need Claude.
+On the cable this skill was built on (Kefalonia–Ithaca, Greece: 15 km of land–sea–land cable, 1872 channels of
+8.17 m), the fibre from the interrogator to the beach manhole is 7.32 km long. The ground under it is 6.44 km.
+Of the 0.87 km difference, 0.71 km is stored at eight points: a reel next to the interrogator (134 m), six coils
+and loops along the road (16 to 155 m each) and a coil in the beach manhole (172 m). The rest is spread along the
+road.
 
-![Kefalonia–Ithaca](docs/kefalonia.png)
+### What goes wrong if it stays in the map
 
-## Demo: the real Kefalonia–Ithaca cable (one minute)
+Figure 2 compares the true positions with the two usual ways of making a channel map.
+
+- **Positions are wrong.** *Map 1* takes channel number × spacing as distance along the route. Each coil then
+  shifts every channel behind it by its own length, and the shifts add up: 0.87 km at the Kefalonia beach.
+  *Map 2* uses the tap-test shots as anchors and spreads the channels evenly between two shots. The error then
+  stays between the two shots, but one 155 m coil still puts channels up to 56 m from where they are.
+- **Signals jump in space.** All channels of a coil record the same ground motion at the same time. Laid out along
+  the route, they turn every moveout into a flat step: an arrival seems to cross 155 m in no time, and everything
+  behind the step is out of place (Figure 2c). A wavefield that is continuous on the ground is no longer
+  continuous on the map.
+- **Amplitudes are wrong.** Coiled fibre does not follow the ground. Its channels record earthquakes 10 to 20
+  times weaker than their neighbours (Figure 3), which looks like a strong site effect and gives poor picks.
+
+![Position error and the jump in space](docs/fig2_spatial_jump.png)
+
+**Figure 2.** Schematic, same loop and coil as Figure 1. **(a)** Position along the road of each channel: true
+(black), map 1 and map 2. **(b)** Position error of the two maps; right axis: the arrival-time error it causes
+for a wave travelling along the cable at 1 km/s. **(c)** Synthetic P and S arrivals (apparent velocity 3 and
+1.2 km/s) with every channel placed by map 1. **(d)** The same arrivals with the loop and the coil at their
+points. Map 1 is 180 m off behind the coil and map 2 up to 47 m off between the shots; in (c) the 19 coil picks
+form a flat step 155 m wide and the picks behind it come 60 ms (P) and 150 ms (S) early. Excess fibre left in
+the map breaks the continuity of the arrivals in space; putting it at its points restores it.
+
+### Picks and association
+
+Phase pickers give one arrival time per channel. An associator such as GaMMA (Zhu et al., 2022) then treats every
+channel as a station at its mapped coordinates, and looks for origins that predict the picked times and,
+optionally, the amplitudes. With excess fibre left in the map it gets:
+
+- the picks of a coil: one arrival time, but *N* different coordinates;
+- every pick behind the coil at a wrong coordinate. The time error is the position error divided by the apparent
+  velocity along the cable:
+
+  | Real numbers from the cable above | Position error | Time error at 5 km/s | at 1 km/s |
+  |---|---|---|---|
+  | Map 2: one 155 m coil between two shots | up to 56 m | 0.01 s | 0.06 s |
+  | Map 1: all excess fibre left in, at the beach | 0.87 km | 0.17 s | 0.87 s |
+
+- an error with the same sign on every channel behind the coil. It is a bias, so it does not average out over
+  channels the way pick noise does. It moves the location, or it pushes picks outside the time tolerance so that
+  they are not associated;
+- amplitudes 10 to 20 times too low on the coil channels.
+
+Waves that arrive steeply have a high apparent velocity and a small time error. Slow waves along the cable (S and
+surface waves in soft ground, vehicles) have the largest. The same holds for anything else that uses distance
+along the cable: apparent velocities, f–k filtering, beamforming, surface-wave dispersion, vehicle tracking.
+
+## 2. How it works
+
+### Tap test: how much excess fibre, and between which shots
+
+A hammer blow at a GPS point is strongest on the channel under it, so that channel becomes an anchor. For each
+pair of neighbouring shots the skill compares the fibre between their channels with the road between their GPS
+points (OpenStreetMap roads or the operator's route). A few metres of difference is measurement error. Tens of
+metres is excess fibre.
+
+Kefalonia: 45 shots, 42 road segments. In 37 of them fibre and road agree within −10 to +22 m. Five hold 36, 42,
+44, 146 and 149 m more fibre than road. The tap test says how much and between which shots, but not where in
+between. Two small cases show in the blows themselves: a loop next to a shot gives a second peak a few channels
+away, and a coil at the shot point responds on all its channels at once.
+
+### Earthquakes: which channels (the amplitude drop)
+
+A regional earthquake shakes a few kilometres of cable almost evenly. Fibre that follows the ground records it.
+Fibre coiled in a manhole hardly does. The skill takes 5 to 10 earthquakes from two or three directions, measures
+the signal on each channel, and looks for runs of channels that are much weaker than their neighbours (below
+0.2 ×) while their noise is normal.
+
+![Two earthquakes on the southern land part of the Kefalonia cable](docs/fig3_earthquake_amplitude.png)
+
+**Figure 3.** Kefalonia land part, channels 700–935 (1.9 km of fibre). **(a, b)** Two earthquakes from different
+directions: amplitude against channel and time. **(c, d)** Strain rate of each channel across one coil, all traces
+at the same gain. **(e)** Signal amplitude of eight earthquakes (ML 2.8–4.1, 9–38 km away, three directions)
+relative to the channels on the road. Three runs of channels stay dark in both earthquakes, their traces are far
+weaker than those next to them, and all eight earthquakes drop to 0.06–0.10 × on the same channels. These runs
+are fibre that does not follow the ground: the candidates for coils.
+
+Kefalonia: each of the five segments with excess fibre holds exactly one weak run, about as long as the excess
+(41, 33, 25, 155 and 131 m of fibre). The other 37 segments hold none. The chance of five runs landing in those
+five segments by accident is about 2 × 10⁻⁴. The drop is the same for every earthquake and direction, its edges
+are one or two channels wide and the noise stays normal, which rules out source direction, site effects and
+instrument problems.
+
+### Vehicles: at one point or not, and where (the jump)
+
+A weak run is fibre that does not follow the ground. It can be a coil at one point, or loose fibre lying along a
+stretch. Vehicles tell the two apart. On a road, a vehicle reaches one channel after another at its speed and
+draws a slanted track (Figure 4). If *N* channels are at one point, they all respond at the same moment and the
+track jumps over them (Figure 5).
+
+![One hour of traffic on the Kefalonia land part](docs/fig4_vehicles_one_hour.png)
+
+**Figure 4.** Kefalonia land part, channels 43–940, one hour of 2024-05-10: vehicle signal (2–20 Hz envelope above
+its running median) against time and channel. Every vehicle draws a slanted track whose slope is its speed; the
+tracks are broken at the red bars. The traffic that is already in the recording crosses the coils several times
+an hour.
+
+![One vehicle crossing the 19-channel coil](docs/fig5_vehicle_jump.png)
+
+**Figure 5.** Zoom on the box of Figure 4. **(a)** Two vehicles crossing three coils (red bands). **(b)** Vehicle
+signal of channels 738–780 as the second vehicle passes. **(c)** Its arrival time at each channel. Before the coil
+the vehicle needs 1.7 s per channel (4.8 m/s). The 19 coil channels rise together, and channel 769 follows
+channel 749 after 2.3 s; along the road those channels would take 34 s. The coil is at one point of the road, and
+the moment of the jump says where.
+
+The skill measures the jump on many hours of traffic (cross-correlations between channels, stacked) and on single
+tracked vehicles: the number of road channels a vehicle needs to cross the run is near 0 for a coil and near *N*
+for a stretch along the road. Kefalonia, 60 days: 0.9 to 1.4 channels for the five runs, 3 to 24 for control
+stretches of the same lengths. The moment a coil responds also gives its place on the road, within about ±4 m on
+a straight road. The vehicles also found a 3-channel coil that was too small for the earthquakes, and showed
+that 17 weak channels on the far shore are not a coil but fibre laid along a detour.
+
+### Into the map
+
+Each block of excess fibre goes to its one point. The other channels of the segment are spread evenly along the
+road. The submarine part is stretched between the two waterlines, where the ocean-wave signal stops. Every
+channel gets a position uncertainty `pos_unc_m`, and the column `slack` marks the channels of a block.
+
+![The Kefalonia–Ithaca channel map](docs/kefalonia.png)
+
+**Figure 6.** The Kefalonia–Ithaca map rebuilt from its real inputs by the demo below. **(a)** All 1872 channels.
+**(b)** Kefalonia land: 43 tap-test anchors and the blocks of excess fibre (circles), each at one point of the
+road. **(c)** Fibre minus ground, summed along the cable. **(d)** Position uncertainty per channel. The curve in
+(c) rises in steps, one per block, to 0.87 km at the beach.
+
+The Kefalonia–Ithaca map holds seven blocks (16 to 172 m of fibre). AIS positions of 43 large ships crossing the
+submarine part, which were not used to build the map, give an along-cable offset of −7 m (90 % range −146 to
++26 m). With the map used before, which had no coils and a wrong distance convention, it was −279 m.
+
+## 3. How to use it
+
+**Install** the skill once. Claude Code finds it by itself:
+
+```bash
+git clone https://github.com/WANGYuhan2002/das-channel-mapping-skill
+pip install -r das-channel-mapping-skill/requirements.txt
+mkdir -p ~/.claude/skills
+ln -s "$PWD/das-channel-mapping-skill/das-channel-mapping" ~/.claude/skills/das-channel-mapping
+```
+
+**Ask Claude** in plain words, in English or Chinese, or call `/das-channel-mapping`:
+
+- "Map the DAS channels of my cable from this tap-test log and the operator's route"
+- "Is there a fibre coil between shots 14 and 15?"
+- "Which channels are in coils and should be left out before association?"
+- "用这份锤击记录做通道映射" · "这两个锤点之间有没有盘缆"
+
+Claude works through [`SKILL.md`](das-channel-mapping/SKILL.md) step by step. It asks for the inputs it needs, runs
+the scripts, shows a figure at each step, and asks you before every judgement call (windows, thresholds, moving an
+anchor, writing a coil into the map).
+
+**Use the map.** Leave out the marked channels before picking and association:
+
+```python
+import pandas as pd
+m = pd.read_csv("examples/kefalonia/out/channel_map_8m.csv")   # written by the demo below
+# leave out the excess fibre and the fibre inside and next to the interrogator
+keep = m[m.slack.isna() & ~m.segment.isin(["internal", "cabin"])]
+stations = keep[["raw_col", "lat", "lon", "pos_unc_m"]]         # 1758 of 1872 channels, one station each
+```
+
+**Try it without Claude.** The demo rebuilds the Kefalonia–Ithaca map from its real inputs (45 tap-test shots with
+GPS, OpenStreetMap roads, the operator's routes, the coil positions found as above) and draws Figure 6:
 
 ```bash
 git clone https://github.com/WANGYuhan2002/das-channel-mapping-skill && cd das-channel-mapping-skill
@@ -46,145 +213,67 @@ pip install -r requirements.txt
 python3 examples/kefalonia/run_kefalonia.py
 ```
 
-A 15 km land–sea–land seafloor DAS cable in Greece (2024; 1872 channels of 8.17 m). The demo takes the real
-inputs in [`examples/kefalonia/data/`](examples/kefalonia/data/) — 45 tap-test shots with GPS, OpenStreetMap
-roads, the operator's routes, a route drawn by hand on Ithaca and the placement configuration — tests the
-distance convention of the shot log, builds the paths and the map, compares every channel with the map that was
-delivered to the project, and draws the figure above. It prints (shortened):
+The rebuilt map matches the delivered one to 0.76 m. Inputs and their sources are listed in
+[`examples/kefalonia/README.md`](examples/kefalonia/README.md), the evidence behind every block in
+[`references/kefalonia-example.md`](das-channel-mapping/references/kefalonia-example.md). A second demo,
+`python3 examples/synthetic/run_demo.py`, maps a synthetic cable with a known truth
+([`docs/demo.png`](docs/demo.png)): a 41 m coil spread evenly puts channels up to 17 m off, and 3.8 m with the
+coil at its point.
 
-```
-1. Distance convention of the shot log: read as the header distance, median -3.9 m, 44/45 within +-21 m;
-   read as the label FO_nom, the error grows to -170 m at the beach -> the log uses the header distance
-2. Paths between the 43 land anchors: 41 OSM, 1 operator route; OSM vs operator route: median 4 m, p90 14 m
-3. Channel map (1872 channels):
-    segment  channels  fibre_m  ground_m  pos_unc_min_m  pos_unc_median_m  pos_unc_max_m
-      cabin     25-42    144.6      10.5           15.0              15.0           15.0
-       land    43-899   7000.3    6432.0            5.1               7.6           14.4
-       coil   900-920    171.7       0.0           15.0              15.0           15.0
-      beach   921-926     49.6      40.7           15.0              15.0           15.0
-        sea  927-1766   6857.7    6724.1           30.0              30.0           30.0
-ithaca_land 1767-1871    853.5     831.8           15.0              60.0           60.0
-   six slack blocks on land (41, 33, 25, 16, 155 and 131 m of fibre), each at one point of the road
-   rebuilt vs delivered table: largest difference 0.76 m (rounding in the 2024 files)
-```
-
-What each input is and where it comes from: [`examples/kefalonia/README.md`](examples/kefalonia/README.md). The
-evidence behind the anchors, waterlines and slack blocks (hammer stacks, wave spectra, earthquakes, 60 days of
-traffic) is summarised in [`references/kefalonia-example.md`](das-channel-mapping/references/kefalonia-example.md).
-
-## Known-truth test: a synthetic cable
-
-```bash
-python3 examples/synthetic/run_demo.py
-```
-
-The demo makes a synthetic 729-channel cable with a known truth. It has a winding road with 9 tap-test anchors
-and a 41 m coil, a manhole coil, a 3 km sea route and a far shore with no anchors. The demo maps the cable,
-checks every channel against the truth and draws [`docs/demo.png`](docs/demo.png). It prints:
-
-```
-          channels  error_median_m  error_max_m  pos_unc_median_m inside_pos_unc
-cabin            5             0.7          1.4              15.0           100%
-land           281             1.4          3.8               8.3           100%
-coil            15             0.0          0.0              15.0           100%
-beach            5             0.2          0.3              15.0           100%
-sea            372             1.1          1.7              30.0           100%
-far_land        41             1.6          1.7              60.0           100%
-
-Segment with the 41 m coil (anchors 5-6, channels 153-192): max error 17 m if the coil is spread evenly,
-3.8 m with the coil block (channels 172-176 at one point).
-```
-
-These errors are a best case. The synthetic cable follows the method's own assumptions, so on a real cable
-expect errors about the size of `pos_unc_m`.
-
-## How a map is built
-
-1. **Anchors.** Channels the data tie to a point on the ground: tap-test (hammer) shots with GPS, and the
-   waterlines where ocean-wave noise stops.
-2. **Paths** between anchors. OpenStreetMap roads shifted through the shot points, the operator's route, or a
-   route you draw.
-3. **Placement.**
-   - Channels are uniform in channel number between anchors.
-   - A slack coil sits at one point.
-   - The sea route is stretched between the two waterlines.
-   - An end with no anchor is laid out with the fibre/road ratio measured on the anchored part.
-4. **Slack.** Segments with extra fibre are candidates. Earthquakes show where the fibre does not follow the
-   ground; passing cars show whether that fibre is coiled at one point and where.
-5. **Uncertainty, checks, delivery.**
-   - Each channel gets a `pos_unc_m` from simple rules.
-   - The map is checked against data that did not build it: shot GPS, AIS ship crossings, hammer travel times.
-   - It is delivered as a versioned package: tables, data dictionary, change table, GeoJSON / KML, md5.
-
-## What you need
+**What you need**
 
 | Input | Needed for |
 |---|---|
-| Channel count, spacing (with the fibre-length multiplier), header start distance, gauge length | always |
-| A tap test with a GPS point per shot, and/or storm vs calm wave power near the shore | any absolute position |
-| A route: OSM roads, the operator's drawing, or one drawn by hand | between anchors |
-| 5–10 regional earthquakes; some hours of traffic; AIS ship tracks | optional: slack, checks |
+| Channel count, channel spacing (with the fibre-length multiplier), header start distance, gauge length | always |
+| A tap test with a GPS point per shot, and/or storm and calm wave power near the shore | any absolute position |
+| A route: OpenStreetMap roads, the operator's drawing, or one drawn by hand | between anchors |
+| 5–10 regional earthquakes and some hours of traffic | finding the excess fibre |
+| AIS ship tracks | optional check of the submarine part |
 
-The scripts start from derived arrays: envelopes, band powers, earthquake windows and car tracks. Each script's
-`--help` gives the formats. Reading your interrogator's files and tracking cars are **not** included.
+The scripts start from derived arrays (envelopes, band powers, earthquake windows, vehicle tracks; each script's
+`--help` gives the formats). Reading your interrogator's files and tracking vehicles are not included.
 
-## Strengths
+**Limits**
 
-- **Traceable.** Every channel has a position and an uncertainty, and its row says what placed it: the segment,
-  the path source and any slack block.
-- **Little fieldwork.** Only one tap test. Everything else is already in the recording (ocean waves,
-  earthquakes, traffic) or public (OSM roads).
-- **It handles slack coils**, which are the largest single error on land. On the real cable, one 155 m coil
-  spread evenly put channels up to 56 m off; the demo shows the same effect.
-- **Independent checks.** GPS, AIS and hammer travel times are data that did not go into the build.
-- **Proven on a real 15 km land–sea–land cable** (Kefalonia–Ithaca, Greece, 2024; the demo above rebuilds its
-  delivered map from the real inputs):
-  - the bias of AIS ship crossings went from −279 m with the old map to −7 m;
-  - earthquakes found one weak run in each of the 5 segments with more than 30 m of extra fibre, and none in
-    the other 37.
-
-  Details are in [`references/kefalonia-example.md`](das-channel-mapping/references/kefalonia-example.md).
-
-## Limitations
-
-- **Accuracy comes from anchors.** Between them, positions are interpolated. The `pos_unc_m` rules (5–15 m on
+- Accuracy comes from the anchors. Between them, positions are interpolated. The `pos_unc_m` rules (5–15 m on
   roads, 30 m at sea, 60 m on an end with no anchor) are rules of thumb from one cable, not a fitted error model.
-- **There are no anchors at sea.** The submarine part is only stretched between the waterlines. AIS checks just
-  its overall along-cable offset where big ships cross. On Kefalonia–Ithaca the median was −7 m, with a 90 %
-  confidence interval of −146 to +26 m.
-- **The path is assumed.** If the cable leaves the road between two anchors, only a gross mismatch shows up
-  (fibre clearly shorter than the path).
-- **Some slack goes unfound.** Only slack that earthquakes or traffic can see gets located; anything else stays
-  spread over its segment. Where a block's edges go is a judgement call.
-- **Cars place coils, not ordinary channels.** Cars brake at corners, which moves positions by 10–30 m.
-- **Not one-click.** Picks such as windows, thresholds and which weak run is a coil are human decisions.
-- **Tested on one real cable** and on synthetic data. Buried, aerial, borehole or duct cables with frequent
-  slack loops are untested.
+- Only excess fibre that earthquakes or vehicles can see gets located. The rest stays spread over its segment.
+  Where the edges of a block go is a judgement call.
+- Vehicles place coils, not ordinary channels: they brake at corners, which moves positions by 10–30 m.
+- There are no anchors at sea. The submarine part is only stretched between the waterlines.
+- It is not one-click. Windows, thresholds and which weak run is a coil are human decisions.
+- Tested on one real cable and on synthetic data. Aerial, borehole or duct cables with frequent slack loops are
+  untested.
 
-## Scripts
-
-Everything is in `das-channel-mapping/scripts/`, and every script has `--help`.
+<details>
+<summary><b>Scripts</b> (in <code>das-channel-mapping/scripts/</code>, each with <code>--help</code>)</summary>
 
 | Script | Does |
 |---|---|
 | `hammer_anchor.py` | finds and stacks the blows of each shot; anchor channel, footprint, loops, coils; which distance convention a log used |
-| `waterline_waves.py` | waterline and end of a beach from storm vs calm wave power |
-| `road_path.py` | OSM paths between anchors, shifted through the shot points; checked against a reference route |
+| `waterline_waves.py` | waterline and end of a beach from storm and calm wave power |
+| `road_path.py` | OpenStreetMap paths between anchors, shifted through the shot points; checked against a reference route |
 | `build_channel_map.py` | the channel map from a JSON config of pieces (point, line, path, anchored, ratio) |
-| `quake_coupling.py` | weakly coupled runs from regional earthquakes, matched with each segment's extra fibre |
+| `quake_coupling.py` | weakly coupled runs from regional earthquakes, matched with each segment's excess fibre |
 | `vehicle_coil.py` | coil at one point or a stretch along the road, and the coil's point on the road |
-| `validate_map.py` | checks: GPS vs route, AIS crossings, hammer travel times |
+| `validate_map.py` | checks: GPS against the route, AIS crossings, hammer travel times |
 | `make_delivery.py` | data dictionary, slack inventory, change table, GeoJSON / KML, md5 manifest |
 | `upload_version.sh` | uploads a delivery as a new version, checks the md5 on the remote, moves `current` |
 
 Tests: `python3 -m pytest -q tests/`. They run every script and the synthetic demo, and check that the
-Kefalonia–Ithaca demo rebuilds the delivered map to within 1 m. The other Kefalonia–Ithaca steps (hammer stacks,
-earthquake weak runs, waterline steps, vehicle coil points, AIS check) were checked against the original results
-outside this repository; their raw data are not included.
+Kefalonia–Ithaca demo rebuilds the delivered map to within 1 m. Figures 1 and 2 are made by
+`python3 docs/make_schematics.py`. Figures 3 to 5 come from the Kefalonia recordings, which are not in this
+repository.
 
-## Credits and license
+</details>
+
+## Reference, credits and license
+
+Zhu, W., McBrearty, I. W., Mousavi, S. M., Ellsworth, W. L., & Beroza, G. C. (2022). Earthquake phase association
+using a Bayesian Gaussian mixture model. *Journal of Geophysical Research: Solid Earth, 127*, e2021JB023249.
 
 OpenStreetMap data © OpenStreetMap contributors (ODbL); credit it on figures made with OSM paths. The coastline in
-the Kefalonia figure is from the Copernicus GLO-30 DEM (© DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH
-2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved). Code: MIT license, see
-[LICENSE](LICENSE); the terms of the example data are in [`examples/kefalonia/README.md`](examples/kefalonia/README.md).
+Figure 6 is from the Copernicus GLO-30 DEM (© DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018
+provided under COPERNICUS by the European Union and ESA; all rights reserved). Code: MIT license, see
+[LICENSE](LICENSE); the terms of the example data are in
+[`examples/kefalonia/README.md`](examples/kefalonia/README.md).

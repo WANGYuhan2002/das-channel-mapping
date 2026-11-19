@@ -103,9 +103,13 @@ def figure(out, fig_path, summ):
     A = pd.DataFrame(summ["anchored"]["anchors"])
     P = LocalXY.around(T.lat, T.lon)
     asp = 1 / np.cos(np.radians(P.lat0))
-    fig = plt.figure(figsize=(14, 10.5))
-    gs = fig.add_gridspec(3, 2, height_ratios=[1.25, 0.55, 0.55], width_ratios=[1.35, 1], hspace=0.45, wspace=0.16,
-                          left=0.06, right=0.98, top=0.9, bottom=0.06)
+    plt.rcParams.update({"font.size": 10.5, "axes.labelsize": 11, "xtick.labelsize": 10, "ytick.labelsize": 10})
+    fig = plt.figure(figsize=(11, 9.8))
+    gs = fig.add_gridspec(3, 2, height_ratios=[1.3, 0.5, 0.5], width_ratios=[1.35, 1], hspace=0.5, wspace=0.2,
+                          left=0.075, right=0.985, top=0.905, bottom=0.06)
+
+    def title(ax, letter, text):
+        ax.set_title(r"$\bf{(" + letter + r")}$ " + text, loc="left", fontsize=10.8)
 
     def base(ax):
         for _, g in coast.groupby("part"):
@@ -127,20 +131,21 @@ def figure(out, fig_path, summ):
             label="drawn route after the last channel")
     ax.plot(route.lon.iloc[-1], route.lat.iloc[-1], "*", color="tab:purple", ms=9, label="telecom node")
     for c in range(0, 1872, 200):
-        ax.annotate(str(c), (T.lon[c], T.lat[c]), xytext=(4, 4), textcoords="offset points", fontsize=7.5)
-    ax.text(0.03, 0.06, "Kefalonia", transform=ax.transAxes, fontsize=11, color="0.35")
-    ax.text(0.86, 0.9, "Ithaca", transform=ax.transAxes, fontsize=11, color="0.35")
+        ax.annotate(str(c), (T.lon[c], T.lat[c]), xytext=(4, 4), textcoords="offset points", fontsize=9)
+    ax.text(0.03, 0.06, "Kefalonia", transform=ax.transAxes, fontsize=12, color="0.35")
+    ax.text(0.86, 0.9, "Ithaca", transform=ax.transAxes, fontsize=12, color="0.35")
     ax.set_xlim(T.lon.min() - 0.004, route.lon.max() + 0.004)
     ax.set_ylim(min(T.lat.min(), route.lat.min()) - 0.006, T.lat.max() + 0.004)
     from matplotlib.lines import Line2D
     hs = [Line2D([], [], ls="", marker="o", ms=5, color=SEGCOL[k], label=k) for k in SEGCOL]
-    hs += [Line2D([], [], ls="--", color="tab:purple", label="drawn route after the last channel"),
+    hs += [Line2D([], [], ls="--", color="tab:purple", label="route beyond the last channel"),
            Line2D([], [], ls="", marker="*", ms=9, color="tab:purple", label="telecom node")]
-    ax.legend(handles=hs, fontsize=7, loc="upper center", bbox_to_anchor=(0.58, 1.0), ncol=2)
-    ax.set_title("(a) The rebuilt map: 1872 channels (numbers every 200), coloured by segment;\n"
-                 "grey: coastline (Copernicus DEM) and OSM roads", fontsize=9.5)
-    ax.set_xlabel("longitude (°E)")
-    ax.set_ylabel("latitude (°N)")
+    ax.legend(handles=hs, fontsize=8.6, loc="upper left", bbox_to_anchor=(0.36, 1.0), ncol=1, handletextpad=0.3,
+              labelspacing=0.22)
+    title(ax, "a", "All 1872 channels (numbers every 200), coloured by segment;\ngrey: coastline and "
+          "OpenStreetMap roads")
+    ax.set_xlabel("Longitude (°E)")
+    ax.set_ylabel("Latitude (°N)")
 
     ax = fig.add_subplot(gs[0, 1])
     base(ax)
@@ -163,16 +168,16 @@ def figure(out, fig_path, summ):
         fib = fibre_of.get((int(g.raw_col.min()), int(g.raw_col.max())),
                            float(G.fibre_m.get("coil", len(g) * 8.168)) if kind == "beach_coil" else len(g) * 8.168)
         ax.plot(g.lon.mean(), g.lat.mean(), "o", ms=5 + fib / 12, mfc="none", mec="m" if kind == "beach_coil" else "red", mew=1.6)
-        right = i % 2 == 0
-        ax.annotate(f"c {g.raw_col.min()}-{g.raw_col.max()}, {fib:.0f} m", (g.lon.mean(), g.lat.mean()),
-                    xytext=(12 if right else -12, 0), textcoords="offset points", fontsize=7, color="darkred",
+        right = int(g.raw_col.min()) not in (681, 705, 844)      # label side with free space on this map
+        ax.annotate(f"{g.raw_col.min()}–{g.raw_col.max()}: {fib:.0f} m", (g.lon.mean(), g.lat.mean()),
+                    xytext=(12 if right else -12, 0), textcoords="offset points", fontsize=8.6, color="darkred",
                     ha="left" if right else "right", va="center")
-    ax.set_xlim(land.lon.min() - 0.006, land.lon.max() + 0.006)
+    ax.set_xlim(land.lon.min() - 0.002, land.lon.max() + 0.0115)
     ax.set_ylim(land.lat.min() - 0.001, land.lat.max() + 0.001)
-    ax.legend(fontsize=7, loc="center left")
-    ax.set_title("(b) Kefalonia land: 43 anchors; every slack block\n(red circle, size ~ fibre) sits at one point of the road",
-                 fontsize=9.5)
-    ax.set_xlabel("longitude (°E)")
+    ax.legend(fontsize=8.6, loc="center left", handletextpad=0.3, labelspacing=0.25, borderaxespad=0.3)
+    title(ax, "b", "Kefalonia land: 43 tap-test anchors;\ncircles: blocks of excess fibre")
+    ax.set_xlabel("Longitude (°E)")
+    ax.xaxis.set_major_locator(plt.MaxNLocator(4))
 
     c = T.raw_col.to_numpy()
     spacing = 8.16761589
@@ -182,9 +187,9 @@ def figure(out, fig_path, summ):
     m = c >= 25
     ax.plot(c[m], ((c - 25) * spacing - (T.s_path_m - T.s_path_m[25]))[m], "k-", lw=1)
     ax.set_xlim(0, 1872)
-    ax.set_ylabel("fibre - ground (m)")
-    ax.set_title("(c) Cumulative extra fibre from channel 25: one step per slack block (cabin, coils, beach manhole), "
-                 "a steady slope on the sea (2.0 %) and on Ithaca", fontsize=9.5)
+    ax.set_ylabel("Fibre − ground (m)")
+    title(ax, "c", "Fibre minus ground, summed from the interrogator: one step per block of excess fibre, a steady "
+          "slope at sea (2.0 %)")
     ax = fig.add_subplot(gs[2, :])
     for sg, g in T.groupby("segment", sort=False):
         ax.axvspan(g.raw_col.min() - 0.5, g.raw_col.max() + 0.5, color=SEGCOL.get(sg, "k"), alpha=0.08, lw=0)
@@ -193,14 +198,15 @@ def figure(out, fig_path, summ):
     ax.semilogy(c, np.maximum(d, 1e-3), ".", ms=1.5, color="tab:red", label="rebuilt - delivered table")
     ax.set_xlim(0, 1872)
     ax.set_ylim(1e-3, 200)
-    ax.set_xlabel("raw channel")
-    ax.set_ylabel("m")
-    ax.legend(fontsize=7.5, loc="lower right", ncol=2)
-    ax.set_title(f"(d) Position uncertainty per channel; the rebuild matches the delivered table to {d.max():.2f} m "
-                 "(rounding in the 2024 files)", fontsize=9.5)
-    fig.suptitle("Kefalonia-Ithaca seafloor DAS, 2024: the delivered channel map rebuilt from its real inputs", fontsize=11.5, y=0.985)
+    ax.set_xlabel("Channel number")
+    ax.set_ylabel("Metres")
+    ax.legend(fontsize=9, loc="lower right", ncol=2, markerscale=4)
+    title(ax, "d", f"Position uncertainty of each channel; the rebuilt map matches the delivered one to "
+          f"{d.max():.2f} m")
+    fig.suptitle("Kefalonia–Ithaca seafloor DAS cable, 2024: the delivered channel map rebuilt from its real inputs",
+                 fontsize=12, y=0.985)
     os.makedirs(os.path.dirname(os.path.abspath(fig_path)), exist_ok=True)
-    fig.savefig(fig_path, dpi=100)
+    fig.savefig(fig_path, dpi=170)
     print(f"4. Figure: {os.path.relpath(fig_path, ROOT)}")
 
 
