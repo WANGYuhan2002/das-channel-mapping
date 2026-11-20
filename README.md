@@ -2,8 +2,9 @@
 
 **English** · [中文](README_zh.md)
 
-**A Claude Code skill that finds the excess fibre along a DAS cable (the coils and loops of spare fibre) and takes
-it out of the channel map.**
+**A Claude Code skill for DAS channel mapping. It first finds the excess fibre along the cable (the coils and
+loops of spare fibre), then delivers the channel map: a position with its uncertainty for every channel, and the
+channels to leave out.**
 
 A DAS (distributed acoustic sensing) interrogator counts its channels along the fibre. The fibre is longer than
 the route it follows, because installers store spare fibre in coils inside manholes and leave loops at splices
@@ -15,8 +16,8 @@ and road crossings. This skill locates that excess length with three signals:
 | **Earthquakes** | which channels hold the excess | the amplitude drops on a run of channels, in every earthquake |
 | **Passing vehicles** | whether those channels are at one point, and where on the road | every vehicle track jumps across them |
 
-It then builds the channel map (latitude, longitude and a position uncertainty for every channel) with each coil
-at its one point on the ground and its channels marked, so that they can be left out.
+The final output is the channel map: latitude, longitude and a position uncertainty for every channel, with each
+coil at its one point on the ground and its channels marked, so that they can be left out.
 
 ![Excess fibre along a DAS cable and the three signals that show it](docs/fig1_excess_fibre.png)
 
